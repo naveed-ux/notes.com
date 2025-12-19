@@ -14,6 +14,7 @@ import { MOCK_NOTES } from './constants';
 const App: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>(MOCK_NOTES);
   const [user, setUser] = useState<User | null>(null);
+  const [revenueShare, setRevenueShare] = useState<number>(85); // Global revenue share %
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
@@ -32,22 +33,28 @@ const App: React.FC = () => {
     }) : null);
   };
 
+  const handleDeleteNote = (id: string) => {
+    if (!user || user.role !== 'admin') return;
+    if (window.confirm("Are you sure you want to permanently delete this note? This action cannot be undone.")) {
+      setNotes(prev => prev.filter(n => n.id !== id));
+    }
+  };
+
   const handlePurchase = (noteId: string, price: number) => {
     if (!user) return;
-    if (user.balance < price) {
-      alert("Insufficient balance!");
-      return;
-    }
     if (user.purchasedNotes.includes(noteId)) {
       alert("You already own this note.");
       return;
     }
+    
+    // In a real app, the admin/seller's balance would increase by (price * revenueShare / 100)
+    // Here we simulate the buyer's side.
     setUser(prev => prev ? ({
       ...prev,
-      balance: prev.balance - price,
       purchasedNotes: [...prev.purchasedNotes, noteId]
     }) : null);
-    alert("Purchase successful! Note added to your library.");
+    
+    alert(`Purchase successful! ${revenueShare}% of your payment (₹${(price * revenueShare / 100).toFixed(2)}) has been processed for the author.`);
   };
 
   if (!user) {
@@ -65,14 +72,15 @@ const App: React.FC = () => {
         
         <main className="flex-grow container mx-auto px-4 py-8 max-w-7xl">
           <Routes>
-            <Route path="/" element={<Marketplace notes={notes} />} />
+            <Route path="/" element={<Marketplace notes={notes} user={user} onDeleteNote={handleDeleteNote} />} />
             <Route 
               path="/note/:id" 
               element={
                 <NoteDetails 
                   notes={notes} 
                   user={user} 
-                  onPurchase={handlePurchase} 
+                  onPurchase={handlePurchase}
+                  onDeleteNote={handleDeleteNote}
                 />
               } 
             />
@@ -80,7 +88,7 @@ const App: React.FC = () => {
               path="/upload" 
               element={
                 user.role === 'admin' ? (
-                  <UploadForm onUpload={handleUpload} user={user} />
+                  <UploadForm onUpload={handleUpload} user={user} revenueShare={revenueShare} />
                 ) : (
                   <Navigate to="/" replace />
                 )
@@ -88,11 +96,19 @@ const App: React.FC = () => {
             />
             <Route 
               path="/dashboard" 
-              element={<Dashboard notes={notes} user={user} />} 
+              element={
+                <Dashboard 
+                  notes={notes} 
+                  user={user} 
+                  onDeleteNote={handleDeleteNote} 
+                  revenueShare={revenueShare}
+                  setRevenueShare={setRevenueShare}
+                />
+              } 
             />
             <Route 
               path="/profile" 
-              element={<Profile user={user} notes={notes} />} 
+              element={<Profile user={user} notes={notes} onDeleteNote={handleDeleteNote} />} 
             />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -110,7 +126,7 @@ const App: React.FC = () => {
             <div className="flex justify-center space-x-6">
               <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-white transition-colors">Contact Us</a>
+              <a href="mailto:naveedmir211@gmail.com" className="hover:text-white transition-colors">Contact Us</a>
             </div>
             <div className="mt-8 pt-8 border-t border-slate-800 text-sm">
               &copy; {new Date().getFullYear()} NoteNexus. All rights reserved.

@@ -1,13 +1,15 @@
 
 import React, { useState } from 'react';
-import { Note, Category } from '../types';
+import { Note, Category, User } from '../types';
 import NoteCard from './NoteCard';
 
 interface MarketplaceProps {
   notes: Note[];
+  user: User;
+  onDeleteNote: (id: string) => void;
 }
 
-const Marketplace: React.FC<MarketplaceProps> = ({ notes }) => {
+const Marketplace: React.FC<MarketplaceProps> = ({ notes, user, onDeleteNote }) => {
   const [filter, setFilter] = useState<string>('All');
   const [search, setSearch] = useState('');
 
@@ -70,7 +72,7 @@ const Marketplace: React.FC<MarketplaceProps> = ({ notes }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredNotes.length > 0 ? (
           filteredNotes.map(note => (
-            <NoteCard key={note.id} note={note} />
+            <NoteCard key={note.id} note={note} user={user} onDelete={onDeleteNote} />
           ))
         ) : (
           <div className="col-span-full py-20 text-center">

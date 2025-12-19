@@ -7,11 +7,13 @@ import { suggestTags } from '../services/geminiService';
 interface UploadFormProps {
   onUpload: (note: Note) => void;
   user: User;
+  revenueShare: number;
 }
 
-const UploadForm: React.FC<UploadFormProps> = ({ onUpload, user }) => {
+const UploadForm: React.FC<UploadFormProps> = ({ onUpload, user, revenueShare }) => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -23,6 +25,8 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUpload, user }) => {
   });
   const [tags, setTags] = useState<string[]>([]);
   const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
+  const [pdfUrl, setPdfUrl] = useState<string>('');
+  const [pdfFileName, setPdfFileName] = useState<string>('');
   const [suggestingTags, setSuggestingTags] = useState(false);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -34,6 +38,26 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUpload, user }) => {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type === 'application/pdf') {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPdfUrl(reader.result as string);
+        setPdfFileName(file.name);
+      };
+      reader.readAsDataURL(file);
+    } else if (file) {
+      alert("Please upload a valid PDF file.");
+    }
+  };
+
+  const removePdf = () => {
+    setPdfUrl('');
+    setPdfFileName('');
+    if (pdfInputRef.current) pdfInputRef.current.value = '';
   };
 
   const removeThumbnail = () => {
@@ -50,7 +74,8 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUpload, user }) => {
       title: formData.title,
       description: formData.description,
       content: formData.content,
-      author: user.name, // Use actual logged-in user name
+      pdfUrl: pdfUrl || undefined,
+      author: user.name,
       price: formData.isFree ? 0 : Number(formData.price),
       category: formData.category,
       rating: 5.0,
@@ -96,55 +121,69 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUpload, user }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-sm space-y-6">
+        <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-sm space-y-8">
           
-          {/* Thumbnail Upload Section */}
-          <div className="space-y-4">
-            <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Note Thumbnail</label>
-            <div className="flex flex-col sm:flex-row items-start gap-6">
+          {/* File Upload Area */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Thumbnail Upload */}
+            <div className="space-y-4">
+              <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Cover Image</label>
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className={`relative w-full sm:w-64 h-40 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${
+                className={`relative h-48 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden ${
                   thumbnailUrl ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-indigo-300'
                 }`}
               >
                 {thumbnailUrl ? (
                   <>
                     <img src={thumbnailUrl} alt="Preview" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white text-sm font-bold">Change Image</span>
-                    </div>
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); removeThumbnail(); }}
+                      className="absolute top-2 right-2 bg-red-500 text-white w-8 h-8 rounded-lg flex items-center justify-center shadow-lg"
+                    >
+                      <i className="fa-solid fa-trash-can text-xs"></i>
+                    </button>
                   </>
                 ) : (
                   <div className="text-center p-4">
                     <i className="fa-solid fa-image text-slate-400 text-3xl mb-2"></i>
-                    <p className="text-xs text-slate-500 font-medium">Click to upload custom thumbnail</p>
-                    <p className="text-[10px] text-slate-400 mt-1">PNG, JPG up to 5MB</p>
+                    <p className="text-xs text-slate-500 font-bold">Upload Cover</p>
                   </div>
                 )}
+                <input ref={fileInputRef} type="file" onChange={handleImageUpload} accept="image/*" className="hidden" />
               </div>
-              
-              <div className="flex-1 space-y-3">
-                <p className="text-sm text-slate-500 leading-relaxed">
-                  A high-quality thumbnail helps your note stand out. If no image is uploaded, we'll generate a unique pattern for you.
-                </p>
-                {thumbnailUrl && (
-                  <button 
-                    type="button"
-                    onClick={removeThumbnail}
-                    className="text-xs text-red-500 font-bold hover:text-red-700 transition-colors flex items-center"
-                  >
-                    <i className="fa-solid fa-trash-can mr-1"></i>
-                    Remove Thumbnail
-                  </button>
+            </div>
+
+            {/* PDF Upload */}
+            <div className="space-y-4">
+              <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Study PDF (Secure)</label>
+              <div 
+                onClick={() => pdfInputRef.current?.click()}
+                className={`relative h-48 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${
+                  pdfUrl ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-emerald-300'
+                }`}
+              >
+                {pdfUrl ? (
+                  <div className="text-center p-6">
+                    <i className="fa-solid fa-file-pdf text-emerald-500 text-4xl mb-3"></i>
+                    <p className="text-sm font-bold text-emerald-900 truncate max-w-[200px]">{pdfFileName}</p>
+                    <button 
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); removePdf(); }}
+                      className="mt-3 text-xs text-red-500 font-bold underline"
+                    >
+                      Remove PDF
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center p-4">
+                    <i className="fa-solid fa-file-circle-plus text-slate-400 text-3xl mb-2"></i>
+                    <p className="text-xs text-slate-500 font-bold">Upload Study PDF</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Users cannot download this</p>
+                  </div>
                 )}
-                <input 
-                  type="file" 
-                  ref={fileInputRef}
-                  onChange={handleImageUpload}
-                  accept="image/*"
-                  className="hidden"
-                />
+                <input ref={pdfInputRef} type="file" onChange={handlePdfUpload} accept="application/pdf" className="hidden" />
               </div>
             </div>
           </div>
@@ -185,11 +224,11 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUpload, user }) => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Note Content (Markdown Supported)</label>
+            <label className="text-sm font-bold text-slate-700 uppercase tracking-wider">Note Content (Description/Summary)</label>
             <textarea 
               required
-              placeholder="Paste or type your detailed study notes here..."
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all h-64 resize-none font-mono text-sm"
+              placeholder="Paste or type your summary here. This is visible as a preview."
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all h-40 resize-none font-mono text-sm"
               value={formData.content}
               onChange={e => setFormData({...formData, content: e.target.value})}
             />
@@ -224,7 +263,8 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUpload, user }) => {
                 </div>
                 <div className="text-right">
                    <p className="text-xs text-slate-500 mb-1">Author Revenue Share</p>
-                   <p className="text-emerald-600 font-bold">85% of Sale Price</p>
+                   <p className="text-emerald-600 font-bold">{revenueShare}% of Sale Price</p>
+                   <p className="text-[10px] text-slate-400 mt-1 italic">Calculated: ₹{(!formData.isFree ? (formData.price * revenueShare / 100).toFixed(2) : "0.00")}</p>
                 </div>
              </div>
           </div>

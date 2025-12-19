@@ -6,9 +6,10 @@ import NoteCard from './NoteCard';
 interface ProfileProps {
   user: User;
   notes: Note[];
+  onDeleteNote: (id: string) => void;
 }
 
-const Profile: React.FC<ProfileProps> = ({ user, notes }) => {
+const Profile: React.FC<ProfileProps> = ({ user, notes, onDeleteNote }) => {
   const isAdmin = user.role === 'admin';
   const purchasedNotes = notes.filter(n => user.purchasedNotes.includes(n.id));
 
@@ -63,21 +64,19 @@ const Profile: React.FC<ProfileProps> = ({ user, notes }) => {
         <div className="space-y-6">
           {isAdmin && (
             <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-              <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6">Financial Overview</h3>
+              <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6">Earnings Tracking</h3>
               <div className="space-y-6">
                 <div>
                   <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                    Platform Earnings
+                    Direct-to-Bank Revenue
                   </div>
                   <div className="text-4xl font-black text-indigo-600 tracking-tight">
                     ₹{user.balance.toFixed(2)}
                   </div>
                 </div>
-                
-                <button className="w-full bg-indigo-50 text-indigo-600 py-4 rounded-2xl font-bold hover:bg-indigo-100 transition-all flex items-center justify-center space-x-2">
-                  <i className="fa-solid fa-plus-circle text-sm"></i>
-                  <span>Withdraw Funds</span>
-                </button>
+                <div className="p-4 bg-slate-50 rounded-2xl text-[11px] text-slate-500 italic leading-relaxed">
+                  Note: All payments are settled instantly to your bank account via UPI. This figure represents the total volume of sales processed through NoteNexus.
+                </div>
               </div>
             </div>
           )}
@@ -91,7 +90,7 @@ const Profile: React.FC<ProfileProps> = ({ user, notes }) => {
                   <span className="font-bold">March 2024</span>
                 </div>
                 <div className="flex items-center justify-between py-3 border-b border-slate-800">
-                  <span className="text-slate-400 text-sm">Total Purchased</span>
+                  <span className="text-slate-400 text-sm">Total Items Purchased</span>
                   <span className="font-bold">{user.purchasedNotes.length} Notes</span>
                 </div>
                 <div className="flex items-center justify-between py-3 border-b border-slate-800">
@@ -116,7 +115,7 @@ const Profile: React.FC<ProfileProps> = ({ user, notes }) => {
           {purchasedNotes.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {purchasedNotes.map(note => (
-                <NoteCard key={note.id} note={note} />
+                <NoteCard key={note.id} note={note} user={user} onDelete={onDeleteNote} />
               ))}
             </div>
           ) : (

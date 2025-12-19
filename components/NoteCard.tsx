@@ -1,18 +1,40 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Note } from '../types';
+import { Note, User } from '../types';
 
 interface NoteCardProps {
   note: Note;
+  user?: User;
+  onDelete?: (id: string) => void;
 }
 
-const NoteCard: React.FC<NoteCardProps> = ({ note }) => {
+const NoteCard: React.FC<NoteCardProps> = ({ note, user, onDelete }) => {
+  const isAdmin = user?.role === 'admin';
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(note.id);
+    }
+  };
+
   return (
     <Link 
       to={`/note/${note.id}`}
-      className="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full"
+      className="group relative bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full"
     >
+      {isAdmin && onDelete && (
+        <button 
+          onClick={handleDelete}
+          className="absolute top-3 right-3 z-20 w-8 h-8 rounded-lg bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors"
+          title="Delete Note"
+        >
+          <i className="fa-solid fa-trash-can text-xs"></i>
+        </button>
+      )}
+
       <div className="relative h-48 overflow-hidden bg-slate-100">
         <img 
           src={note.thumbnailUrl} 

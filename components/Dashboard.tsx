@@ -7,9 +7,12 @@ import NoteCard from './NoteCard';
 interface DashboardProps {
   user: User;
   notes: Note[];
+  onDeleteNote: (id: string) => void;
+  revenueShare: number;
+  setRevenueShare: (val: number) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ user, notes }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, notes, onDeleteNote, revenueShare, setRevenueShare }) => {
   const isAdmin = user.role === 'admin';
   const purchased = notes.filter(n => user.purchasedNotes.includes(n.id));
   const uploaded = notes.filter(n => user.uploadedNotes.includes(n.id));
@@ -28,28 +31,68 @@ const Dashboard: React.FC<DashboardProps> = ({ user, notes }) => {
            </div>
            <p className="text-slate-500">
              {isAdmin 
-               ? "Manage your global inventory and monitor site-wide earnings." 
+               ? "Manage your global inventory and platform configuration." 
                : "Access all your purchased study materials in one place."}
            </p>
         </div>
         
         {isAdmin && (
-          <div className="flex items-center space-x-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+          <div className="flex items-center space-x-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm pr-8">
              <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-indigo-50">
                 <i className="fa-solid fa-chart-line text-indigo-600 text-xl"></i>
              </div>
              <div>
                 <div className="text-[10px] text-slate-400 uppercase font-black tracking-widest">
-                  Total Sales Revenue
+                  Tracked Sales Revenue
                 </div>
                 <div className="text-2xl font-black text-slate-900">₹{user.balance.toFixed(2)}</div>
              </div>
-             <button className="bg-slate-900 text-white px-5 py-2.5 rounded-2xl text-xs font-bold ml-4 hover:bg-indigo-600 transition-all shadow-lg shadow-slate-100">
-                Withdraw Funds
-             </button>
+             <div className="ml-4 pl-4 border-l border-slate-100 flex flex-col">
+                <span className="text-[10px] text-emerald-600 font-black uppercase tracking-widest leading-none">Direct To Bank</span>
+                <span className="text-[10px] text-slate-400 font-medium mt-1">Settled via UPI</span>
+             </div>
           </div>
         )}
       </header>
+
+      {isAdmin && (
+        <section className="bg-white rounded-[2.5rem] p-8 border border-indigo-100 shadow-sm shadow-indigo-50 relative overflow-hidden">
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center gap-8">
+            <div className="lg:w-1/3">
+              <h2 className="text-2xl font-black text-slate-900 flex items-center">
+                <i className="fa-solid fa-gears text-indigo-500 mr-3"></i>
+                Platform Settings
+              </h2>
+              <p className="text-slate-500 text-sm mt-2">Configure how revenue is split between NoteNexus and authors.</p>
+            </div>
+            
+            <div className="flex-1 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+               <div className="flex items-center justify-between mb-4">
+                  <label className="text-xs font-black text-slate-400 uppercase tracking-widest">Author Sale Price Percent</label>
+                  <span className="bg-indigo-600 text-white px-4 py-1.5 rounded-xl font-black text-lg">{revenueShare}%</span>
+               </div>
+               <div className="flex items-center space-x-4">
+                  <span className="text-xs font-bold text-slate-400">0%</span>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="100" 
+                    step="1"
+                    value={revenueShare}
+                    onChange={(e) => setRevenueShare(parseInt(e.target.value))}
+                    className="flex-1 h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  />
+                  <span className="text-xs font-bold text-slate-400">100%</span>
+               </div>
+               <div className="mt-4 flex items-center text-[10px] text-slate-400">
+                  <i className="fa-solid fa-circle-info mr-2 text-indigo-400"></i>
+                  <span>This setting affects how revenue shares are calculated and displayed on new uploads.</span>
+               </div>
+            </div>
+          </div>
+          <i className="fa-solid fa-percent absolute -top-10 -right-10 text-slate-50 text-[12rem] pointer-events-none"></i>
+        </section>
+      )}
 
       <section>
         <div className="flex items-center justify-between mb-8">
@@ -67,7 +110,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, notes }) => {
         
         {purchased.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {purchased.map(note => <NoteCard key={note.id} note={note} />)}
+            {purchased.map(note => <NoteCard key={note.id} note={note} user={user} onDelete={onDeleteNote} />)}
           </div>
         ) : (
           <div className="bg-white rounded-[2.5rem] p-16 text-center border border-slate-200 shadow-sm">
@@ -84,7 +127,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, notes }) => {
         )}
       </section>
 
-      {/* Admin specific Uploads Section */}
       {isAdmin && (
         <section className="pt-12 border-t border-slate-100 animate-fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
@@ -107,7 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, notes }) => {
 
           {uploaded.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {uploaded.map(note => <NoteCard key={note.id} note={note} />)}
+              {uploaded.map(note => <NoteCard key={note.id} note={note} user={user} onDelete={onDeleteNote} />)}
             </div>
           ) : (
             <div className="bg-indigo-50/40 rounded-[2.5rem] p-16 text-center border-2 border-dashed border-indigo-200">

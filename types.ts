@@ -14,6 +14,7 @@ export interface Note {
   title: string;
   description: string;
   content: string;
+  pdfUrl?: string; // New field for PDF data
   author: string;
   price: number;
   category: Category;

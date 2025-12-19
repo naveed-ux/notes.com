@@ -53,7 +53,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
             {isAdmin && (
               <div className="hidden sm:flex flex-col items-end mr-2 text-right">
                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider leading-none mb-1">
-                  Revenue
+                  Total Sales
                 </span>
                 <span className="text-emerald-600 font-bold leading-none">₹{user.balance.toFixed(2)}</span>
               </div>
