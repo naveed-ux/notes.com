@@ -69,6 +69,7 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUpload, user, revenueShare })
     e.preventDefault();
     setLoading(true);
     
+    // Fix: Added missing required property 'ratingCount' to Note type to satisfy interface requirements
     const newNote: Note = {
       id: Math.random().toString(36).substr(2, 9),
       title: formData.title,
@@ -79,6 +80,7 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUpload, user, revenueShare })
       price: formData.isFree ? 0 : Number(formData.price),
       category: formData.category,
       rating: 5.0,
+      ratingCount: 1,
       tags: tags,
       createdAt: new Date().toISOString().split('T')[0],
       isFree: formData.isFree,
