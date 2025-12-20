@@ -14,11 +14,12 @@ export interface Note {
   title: string;
   description: string;
   content: string;
-  pdfUrl?: string; // New field for PDF data
+  pdfUrl?: string;
   author: string;
   price: number;
   category: Category;
   rating: number;
+  ratingCount: number; // New field for average calculation
   tags: string[];
   createdAt: string;
   isFree: boolean;
@@ -35,5 +36,5 @@ export interface User {
   balance: number;
   purchasedNotes: string[];
   uploadedNotes: string[];
-  password?: string; // For simulation purposes
+  password?: string;
 }

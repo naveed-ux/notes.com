@@ -10,9 +10,10 @@ interface NoteDetailsProps {
   user: User;
   onPurchase: (noteId: string, price: number) => void;
   onDeleteNote: (id: string) => void;
+  onRateNote: (noteId: string, rating: number) => void;
 }
 
-const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDeleteNote }) => {
+const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDeleteNote, onRateNote }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const note = notes.find(n => n.id === id);
@@ -30,12 +31,19 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
   const [paymentStep, setPaymentStep] = useState<'qr' | 'verifying'>('qr');
   const [transactionId, setTransactionId] = useState('');
 
+  // Rating states
+  const [userRating, setUserRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [hasRated, setHasRated] = useState(false);
+
   useEffect(() => {
     setAiSummary(null);
     setStudyQuestions([]);
     setShowPaymentModal(false);
     setPaymentStep('qr');
     setTransactionId('');
+    setUserRating(0);
+    setHasRated(false);
   }, [id]);
 
   const handleAskAI = async () => {
@@ -53,6 +61,13 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
     }
   };
 
+  const handleRating = (rating: number) => {
+    if (hasRated || !note) return;
+    setUserRating(rating);
+    onRateNote(note.id, rating);
+    setHasRated(true);
+  };
+
   const scrollToContent = () => {
     contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -67,7 +82,6 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
       return;
     }
     setPaymentStep('verifying');
-    // Simulate admin verification process
     setTimeout(() => {
       if (note) {
         onPurchase(note.id, note.price);
@@ -134,7 +148,7 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
                         onChange={(e) => setTransactionId(e.target.value)}
                       />
                       <p className="text-[9px] text-slate-400 px-1 leading-tight">
-                        * This ID is found in your UPI app's payment receipt. It helps us match the payment to your account.
+                        * This ID is found in your UPI app's payment receipt.
                       </p>
                     </div>
 
@@ -185,6 +199,11 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
                {note.tags.map(tag => (
                  <span key={tag} className="text-slate-500 bg-slate-100 px-3 py-1 rounded-full text-xs">#{tag}</span>
                ))}
+               <div className="flex items-center ml-auto bg-amber-50 px-3 py-1 rounded-full">
+                  <i className="fa-solid fa-star text-amber-500 text-[10px] mr-1.5"></i>
+                  <span className="text-amber-700 text-xs font-black">{note.rating}</span>
+                  <span className="text-amber-400 text-[10px] ml-1 font-bold">({note.ratingCount})</span>
+               </div>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-slate-900 mb-4 leading-tight">{note.title}</h1>
             
@@ -215,7 +234,6 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
                         <div className="absolute inset-0 pointer-events-none select-none z-10 flex items-center justify-center">
                            <div className="text-white/5 text-6xl font-black -rotate-45 select-none pointer-events-none">NOTENEXUS SECURE VIEW</div>
                         </div>
-                        <div className="absolute inset-0 z-20" style={{ pointerEvents: 'none' }} />
                       </div>
                     ) : (
                       <div className="text-slate-700 leading-relaxed whitespace-pre-wrap font-mono text-sm bg-white p-6 min-h-[300px]">
@@ -226,8 +244,7 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
                 ) : (
                   <div className="relative p-12 bg-white">
                     <div className="blur-md select-none opacity-20 leading-relaxed space-y-4">
-                       <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
-                       <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit id est laborum.</p>
+                       <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit...</p>
                     </div>
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-white/40 backdrop-blur-sm">
                       <div className="bg-indigo-600 text-white w-16 h-16 rounded-full flex items-center justify-center mb-4 shadow-xl">
@@ -249,49 +266,87 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
           </div>
 
           {canAccess && (
-            <div className="bg-gradient-to-br from-indigo-50 to-white rounded-3xl p-8 border border-indigo-100 shadow-sm relative overflow-hidden">
-               <div className={`flex items-center justify-between transition-opacity duration-300 ${loadingAI ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
-                <div>
-                   <h3 className="text-2xl font-black text-slate-900 flex items-center">
-                    <i className="fa-solid fa-wand-magic-sparkles text-indigo-500 mr-3"></i>
-                    AI Note Assistant
-                  </h3>
-                  <p className="text-slate-600">Get summaries and study questions from the content.</p>
-                </div>
-                {!aiSummary && !loadingAI && (
-                   <button onClick={handleAskAI} className="bg-white border-2 border-indigo-600 text-indigo-600 px-6 py-2 rounded-xl font-bold hover:bg-indigo-600 hover:text-white transition-all group">
-                     <i className="fa-solid fa-sparkles mr-2"></i> Deep Analysis
-                   </button>
-                )}
+            <div className="space-y-8">
+              {/* Interactive Rating Section */}
+              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm text-center">
+                 <h3 className="text-xl font-black text-slate-900 mb-2">Rate your experience</h3>
+                 <p className="text-slate-500 text-sm mb-6">How helpful was this study material for you?</p>
+                 
+                 {!hasRated ? (
+                    <div className="flex items-center justify-center space-x-3 mb-2">
+                       {[1, 2, 3, 4, 5].map((star) => (
+                         <button
+                           key={star}
+                           onMouseEnter={() => setHoverRating(star)}
+                           onMouseLeave={() => setHoverRating(0)}
+                           onClick={() => handleRating(star)}
+                           className="transition-all transform hover:scale-125 focus:outline-none"
+                         >
+                           <i className={`fa-solid fa-star text-3xl ${
+                             (hoverRating || userRating) >= star ? 'text-amber-400' : 'text-slate-200'
+                           }`}></i>
+                         </button>
+                       ))}
+                    </div>
+                 ) : (
+                   <div className="animate-fade-in flex flex-col items-center">
+                     <div className="bg-emerald-100 text-emerald-600 w-12 h-12 rounded-full flex items-center justify-center mb-3">
+                        <i className="fa-solid fa-check text-xl"></i>
+                     </div>
+                     <p className="text-emerald-700 font-bold">Thanks for your feedback!</p>
+                     <div className="flex space-x-1 mt-2">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <i key={s} className={`fa-solid fa-star text-xs ${userRating >= s ? 'text-amber-400' : 'text-slate-200'}`}></i>
+                        ))}
+                     </div>
+                   </div>
+                 )}
               </div>
 
-              {loadingAI && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm animate-fade-in z-20">
-                  <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-                  <h4 className="text-lg font-black text-indigo-900 animate-pulse">Gemini is processing...</h4>
+              <div className="bg-gradient-to-br from-indigo-50 to-white rounded-3xl p-8 border border-indigo-100 shadow-sm relative overflow-hidden">
+                 <div className={`flex items-center justify-between transition-opacity duration-300 ${loadingAI ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
+                  <div>
+                     <h3 className="text-2xl font-black text-slate-900 flex items-center">
+                      <i className="fa-solid fa-wand-magic-sparkles text-indigo-500 mr-3"></i>
+                      AI Note Assistant
+                    </h3>
+                    <p className="text-slate-600">Get summaries and study questions from the content.</p>
+                  </div>
+                  {!aiSummary && !loadingAI && (
+                     <button onClick={handleAskAI} className="bg-white border-2 border-indigo-600 text-indigo-600 px-6 py-2 rounded-xl font-bold hover:bg-indigo-600 hover:text-white transition-all group">
+                       <i className="fa-solid fa-sparkles mr-2"></i> Deep Analysis
+                     </button>
+                  )}
                 </div>
-              )}
 
-              {aiSummary && (
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
-                  <div className="bg-white p-6 rounded-2xl border border-indigo-50">
-                    <h4 className="text-lg font-bold text-indigo-900 mb-4 flex items-center">
-                       <i className="fa-solid fa-align-left mr-2"></i> Smart Summary
-                    </h4>
-                    <div className="text-slate-700 text-sm leading-relaxed prose prose-sm max-w-none">{aiSummary}</div>
+                {loadingAI && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm animate-fade-in z-20">
+                    <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                    <h4 className="text-lg font-black text-indigo-900 animate-pulse">Gemini is processing...</h4>
                   </div>
-                  <div className="bg-white p-6 rounded-2xl border border-indigo-50">
-                    <h4 className="text-lg font-bold text-indigo-900 mb-4 flex items-center">
-                       <i className="fa-solid fa-clipboard-question mr-2"></i> Study Questions
-                    </h4>
-                    <ul className="space-y-4">
-                      {studyQuestions.map((q, idx) => (
-                        <li key={idx} className="bg-slate-50 p-3 rounded-lg border-l-4 border-indigo-400 text-sm text-slate-700 italic">"{q}"</li>
-                      ))}
-                    </ul>
+                )}
+
+                {aiSummary && (
+                  <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
+                    <div className="bg-white p-6 rounded-2xl border border-indigo-50">
+                      <h4 className="text-lg font-bold text-indigo-900 mb-4 flex items-center">
+                         <i className="fa-solid fa-align-left mr-2"></i> Smart Summary
+                      </h4>
+                      <div className="text-slate-700 text-sm leading-relaxed prose prose-sm max-w-none">{aiSummary}</div>
+                    </div>
+                    <div className="bg-white p-6 rounded-2xl border border-indigo-50">
+                      <h4 className="text-lg font-bold text-indigo-900 mb-4 flex items-center">
+                         <i className="fa-solid fa-clipboard-question mr-2"></i> Study Questions
+                      </h4>
+                      <ul className="space-y-4">
+                        {studyQuestions.map((q, idx) => (
+                          <li key={idx} className="bg-slate-50 p-3 rounded-lg border-l-4 border-indigo-400 text-sm text-slate-700 italic">"{q}"</li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -335,11 +390,11 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
                 </li>
                 <li className="flex items-start text-sm text-slate-600">
                   <i className="fa-solid fa-circle-check text-emerald-500 mt-1 mr-3"></i>
-                  <span>Non-downloadable content</span>
+                  <span>AI Study Assistance</span>
                 </li>
                 <li className="flex items-start text-sm text-slate-600">
                   <i className="fa-solid fa-circle-check text-emerald-500 mt-1 mr-3"></i>
-                  <span>Admin matched via UTR</span>
+                  <span>Verified by Community</span>
                 </li>
               </ul>
             </div>

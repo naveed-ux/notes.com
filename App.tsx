@@ -12,9 +12,16 @@ import { Note, User } from './types';
 import { MOCK_NOTES } from './constants';
 
 const App: React.FC = () => {
-  const [notes, setNotes] = useState<Note[]>(MOCK_NOTES);
+  const [notes, setNotes] = useState<Note[]>(() => {
+    const saved = localStorage.getItem('nn_notes');
+    return saved ? JSON.parse(saved) : MOCK_NOTES;
+  });
   const [user, setUser] = useState<User | null>(null);
-  const [revenueShare, setRevenueShare] = useState<number>(85); // Global revenue share %
+  const [revenueShare, setRevenueShare] = useState<number>(85);
+
+  useEffect(() => {
+    localStorage.setItem('nn_notes', JSON.stringify(notes));
+  }, [notes]);
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
@@ -40,6 +47,22 @@ const App: React.FC = () => {
     }
   };
 
+  const handleRateNote = (noteId: string, newRating: number) => {
+    setNotes(prev => prev.map(note => {
+      if (note.id === noteId) {
+        const totalRatingValue = note.rating * note.ratingCount;
+        const newCount = note.ratingCount + 1;
+        const newAverage = (totalRatingValue + newRating) / newCount;
+        return {
+          ...note,
+          rating: Number(newAverage.toFixed(1)),
+          ratingCount: newCount
+        };
+      }
+      return note;
+    }));
+  };
+
   const handlePurchase = (noteId: string, price: number) => {
     if (!user) return;
     if (user.purchasedNotes.includes(noteId)) {
@@ -47,8 +70,6 @@ const App: React.FC = () => {
       return;
     }
     
-    // In a real app, the admin/seller's balance would increase by (price * revenueShare / 100)
-    // Here we simulate the buyer's side.
     setUser(prev => prev ? ({
       ...prev,
       purchasedNotes: [...prev.purchasedNotes, noteId]
@@ -81,6 +102,7 @@ const App: React.FC = () => {
                   user={user} 
                   onPurchase={handlePurchase}
                   onDeleteNote={handleDeleteNote}
+                  onRateNote={handleRateNote}
                 />
               } 
             />

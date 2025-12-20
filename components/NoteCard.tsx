@@ -51,6 +51,15 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, user, onDelete }) => {
              <span className="bg-indigo-600 px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm">₹{note.price.toFixed(2)}</span>
           )}
         </div>
+        
+        {/* Hover overlay for rating */}
+        <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+           <div className="bg-white px-4 py-2 rounded-2xl flex items-center space-x-2 scale-90 group-hover:scale-100 transition-transform">
+              <i className="fa-solid fa-star text-amber-400"></i>
+              <span className="font-black text-slate-900">{note.rating}</span>
+              <span className="text-slate-400 text-xs font-bold">({note.ratingCount})</span>
+           </div>
+        </div>
       </div>
       
       <div className="p-5 flex-grow flex flex-col">
@@ -68,9 +77,9 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, user, onDelete }) => {
             </div>
             <span className="text-xs text-slate-600 font-medium">{note.author}</span>
           </div>
-          <div className="flex items-center space-x-1">
-            <i className="fa-solid fa-star text-amber-400 text-xs"></i>
-            <span className="text-xs font-bold text-slate-700">{note.rating}</span>
+          <div className="flex items-center bg-slate-50 px-2 py-1 rounded-lg">
+            <i className="fa-solid fa-star text-amber-400 text-[10px] mr-1.5"></i>
+            <span className="text-[10px] font-black text-slate-700">{note.rating}</span>
           </div>
         </div>
       </div>
