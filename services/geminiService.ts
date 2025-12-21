@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 
 // Fix: Strictly following the initialization guidelines for GoogleGenAI
 const getAI = () => {
@@ -8,7 +8,8 @@ const getAI = () => {
 
 export const summarizeNote = async (content: string): Promise<string> => {
   const ai = getAI();
-  const response = await ai.models.generateContent({
+  // Using gemini-3-flash-preview for basic text tasks
+  const response: GenerateContentResponse = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Summarize the following study note into 3-5 concise bullet points. Focus on key concepts and actionable takeaways: \n\n${content}`,
   });
@@ -18,7 +19,8 @@ export const summarizeNote = async (content: string): Promise<string> => {
 
 export const suggestTags = async (title: string, content: string): Promise<string[]> => {
   const ai = getAI();
-  const response = await ai.models.generateContent({
+  // Using gemini-3-flash-preview for tag suggestion
+  const response: GenerateContentResponse = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Based on the title "${title}" and content "${content}", suggest 5 relevant keywords/tags for this note.`,
     config: {
@@ -40,7 +42,8 @@ export const suggestTags = async (title: string, content: string): Promise<strin
 
 export const getStudyQuestions = async (content: string): Promise<string[]> => {
   const ai = getAI();
-  const response = await ai.models.generateContent({
+  // Using gemini-3-pro-preview for complex reasoning tasks
+  const response: GenerateContentResponse = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Generate 3 challenging study questions based on this content to help test understanding: \n\n${content}`,
     config: {

@@ -2,14 +2,17 @@
 import React, { useState } from 'react';
 import { Note, Category, User } from '../types';
 import NoteCard from './NoteCard';
+import AdPlacement from './AdPlacement';
 
 interface MarketplaceProps {
   notes: Note[];
   user: User;
   onDeleteNote: (id: string) => void;
+  onAdImpression: () => void;
+  adsEnabled: boolean;
 }
 
-const Marketplace: React.FC<MarketplaceProps> = ({ notes, user, onDeleteNote }) => {
+const Marketplace: React.FC<MarketplaceProps> = ({ notes, user, onDeleteNote, onAdImpression, adsEnabled }) => {
   const [filter, setFilter] = useState<string>('All');
   const [search, setSearch] = useState('');
 
@@ -33,23 +36,24 @@ const Marketplace: React.FC<MarketplaceProps> = ({ notes, user, onDeleteNote }) 
           <p className="text-indigo-100 text-lg mb-8 max-w-xl">
             Access expert study materials, summaries, and exam guides curated to help you excel in your academic journey.
           </p>
-          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
-            <div className="relative flex-grow max-w-md">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-              <input 
-                type="text" 
-                placeholder="Search by topic, subject, or author..." 
-                className="w-full pl-12 pr-4 py-4 rounded-xl border-none ring-0 focus:ring-2 focus:ring-indigo-400 text-slate-900"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+          <div className="relative flex-grow max-w-md">
+            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input 
+              type="text" 
+              placeholder="Search by topic, subject, or author..." 
+              className="w-full pl-12 pr-4 py-4 rounded-xl border-none ring-0 focus:ring-2 focus:ring-indigo-400 text-slate-900 shadow-xl"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
         </div>
         <div className="absolute top-0 right-0 h-full w-1/3 opacity-10 hidden md:block">
            <i className="fa-solid fa-brain text-[200px] absolute -right-10 -top-10 rotate-12"></i>
         </div>
       </section>
+
+      {/* Ad Leaderboard */}
+      {adsEnabled && <AdPlacement type="leaderboard" onImpression={onAdImpression} />}
 
       {/* Filter Tabs */}
       <div className="flex flex-wrap items-center gap-2 mb-8">
@@ -68,11 +72,17 @@ const Marketplace: React.FC<MarketplaceProps> = ({ notes, user, onDeleteNote }) 
         ))}
       </div>
 
-      {/* Grid */}
+      {/* Grid with Native Ads */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredNotes.length > 0 ? (
-          filteredNotes.map(note => (
-            <NoteCard key={note.id} note={note} user={user} onDelete={onDeleteNote} />
+          filteredNotes.map((note, index) => (
+            <React.Fragment key={note.id}>
+              <NoteCard note={note} user={user} onDelete={onDeleteNote} />
+              {/* Insert native ad every 4 notes */}
+              {adsEnabled && (index + 1) % 4 === 0 && (
+                <AdPlacement type="native" onImpression={onAdImpression} />
+              )}
+            </React.Fragment>
           ))
         ) : (
           <div className="col-span-full py-20 text-center">

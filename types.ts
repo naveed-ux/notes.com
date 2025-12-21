@@ -19,7 +19,7 @@ export interface Note {
   price: number;
   category: Category;
   rating: number;
-  ratingCount: number; // New field for average calculation
+  ratingCount: number;
   tags: string[];
   createdAt: string;
   isFree: boolean;
@@ -34,7 +34,14 @@ export interface User {
   email: string;
   role: UserRole;
   balance: number;
+  adRevenue: number; // New: Tracks simulated ad earnings
   purchasedNotes: string[];
   uploadedNotes: string[];
   password?: string;
+}
+
+export interface AdConfig {
+  enabled: boolean;
+  cpm: number; // Revenue per 1000 impressions
+  currentImpressions: number;
 }

@@ -4,6 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Note, User } from '../types';
 import { summarizeNote, getStudyQuestions } from '../services/geminiService';
 import { ADMIN_UPI_ID, ADMIN_NAME } from '../constants';
+import AdPlacement from './AdPlacement';
 
 interface NoteDetailsProps {
   notes: Note[];
@@ -11,9 +12,11 @@ interface NoteDetailsProps {
   onPurchase: (noteId: string, price: number) => void;
   onDeleteNote: (id: string) => void;
   onRateNote: (noteId: string, rating: number) => void;
+  onAdImpression: () => void;
+  adsEnabled: boolean;
 }
 
-const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDeleteNote, onRateNote }) => {
+const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDeleteNote, onRateNote, onAdImpression, adsEnabled }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const note = notes.find(n => n.id === id);
@@ -21,29 +24,21 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
   
   const isPurchased = user.purchasedNotes.includes(id || '');
   const canAccess = note?.isFree || isPurchased;
-  const isAdmin = user.role === 'admin';
-
+  
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [studyQuestions, setStudyQuestions] = useState<string[]>([]);
   const [loadingAI, setLoadingAI] = useState(false);
   
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentStep, setPaymentStep] = useState<'qr' | 'verifying'>('qr');
+  const [paymentStep, setPaymentStep] = useState<'method' | 'qr' | 'verifying'>('method');
   const [transactionId, setTransactionId] = useState('');
-
-  // Rating states
-  const [userRating, setUserRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
-  const [hasRated, setHasRated] = useState(false);
 
   useEffect(() => {
     setAiSummary(null);
     setStudyQuestions([]);
     setShowPaymentModal(false);
-    setPaymentStep('qr');
+    setPaymentStep('method');
     setTransactionId('');
-    setUserRating(0);
-    setHasRated(false);
   }, [id]);
 
   const handleAskAI = async () => {
@@ -61,19 +56,9 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
     }
   };
 
-  const handleRating = (rating: number) => {
-    if (hasRated || !note) return;
-    setUserRating(rating);
-    onRateNote(note.id, rating);
-    setHasRated(true);
-  };
-
-  const scrollToContent = () => {
-    contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
   const initiatePurchase = () => {
     setShowPaymentModal(true);
+    setPaymentStep('method');
   };
 
   const confirmPayment = () => {
@@ -86,17 +71,10 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
       if (note) {
         onPurchase(note.id, note.price);
         setShowPaymentModal(false);
-        setPaymentStep('qr');
+        setPaymentStep('method');
         setTransactionId('');
       }
     }, 3000);
-  };
-
-  const handleDelete = () => {
-    if (note) {
-      onDeleteNote(note.id);
-      navigate('/');
-    }
   };
 
   if (!note) return (
@@ -106,80 +84,134 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
     </div>
   );
 
-  const upiUrl = `upi://pay?pa=${ADMIN_UPI_ID}&pn=${encodeURIComponent(ADMIN_NAME)}&am=${note.price}&cu=INR&tn=${encodeURIComponent('Buying: ' + note.title + ' User: ' + user.email)}`;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiUrl)}`;
+  const upiUrl = `upi://pay?pa=${ADMIN_UPI_ID}&pn=${encodeURIComponent(ADMIN_NAME)}&am=${note.price}&cu=INR&tn=${encodeURIComponent('Buying: ' + note.title)}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiUrl)}`;
+
+  const handleUpiDeepLink = () => {
+    window.location.href = upiUrl;
+  };
 
   return (
     <div className="animate-fade-in relative">
       {/* Payment Modal */}
       {showPaymentModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-fade-in">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border border-white/20">
             <div className="p-8">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-black text-slate-900">Secure Checkout</h3>
-                <button onClick={() => setShowPaymentModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                  <i className="fa-solid fa-xmark text-xl"></i>
+              <div className="flex justify-between items-center mb-8">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">Secure Checkout</h3>
+                  <p className="text-slate-500 text-xs">Instantly unlock your study material</p>
+                </div>
+                <button onClick={() => setShowPaymentModal(false)} className="bg-slate-100 hover:bg-slate-200 text-slate-500 w-10 h-10 rounded-full flex items-center justify-center transition-colors">
+                  <i className="fa-solid fa-xmark"></i>
                 </button>
               </div>
 
-              {paymentStep === 'qr' ? (
+              {paymentStep === 'method' && (
                 <div className="space-y-6">
-                  <div className="text-center">
-                    <div className="bg-indigo-50 p-4 rounded-2xl inline-block mb-4">
-                      <img src={qrCodeUrl} alt="UPI QR Code" className="w-40 h-40 mx-auto mix-blend-multiply" />
-                    </div>
-                    <div>
-                      <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Pay with any UPI App</p>
-                      <p className="text-2xl font-black text-slate-900">₹{note.price.toFixed(2)}</p>
-                    </div>
+                  <div className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100 text-center mb-6">
+                    <p className="text-[10px] text-indigo-400 uppercase font-black tracking-widest mb-1">Total to Pay</p>
+                    <div className="text-3xl font-black text-indigo-600">₹{note.price.toFixed(2)}</div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                        Transaction ID / UTR Number
-                      </label>
-                      <input 
-                        type="text"
-                        placeholder="Enter 12-digit UTR number"
-                        className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-mono"
-                        value={transactionId}
-                        onChange={(e) => setTransactionId(e.target.value)}
-                      />
-                      <p className="text-[9px] text-slate-400 px-1 leading-tight">
-                        * This ID is found in your UPI app's payment receipt.
-                      </p>
-                    </div>
+                  <div className="space-y-3">
+                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest ml-1 mb-2">Pay via UPI App</p>
+                    <button onClick={handleUpiDeepLink} className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-50 transition-all group">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-lg">
+                          <i className="fa-solid fa-mobile-screen-button"></i>
+                        </div>
+                        <span className="font-bold text-slate-800">Any UPI App</span>
+                      </div>
+                      <i className="fa-solid fa-chevron-right text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all"></i>
+                    </button>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <a href={upiUrl} className="bg-slate-100 text-slate-900 py-3 rounded-xl font-bold text-xs flex items-center justify-center hover:bg-slate-200 transition-all border border-slate-200">
-                        <i className="fa-solid fa-mobile-screen-button mr-2"></i> Pay In App
-                      </a>
-                      <button 
-                        onClick={confirmPayment} 
-                        disabled={!transactionId || transactionId.length < 6}
-                        className="bg-indigo-600 text-white py-3 rounded-xl font-bold text-xs hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Submit & Verify
+                    <div className="grid grid-cols-3 gap-3">
+                      <button onClick={handleUpiDeepLink} className="flex flex-col items-center p-3 border border-slate-200 rounded-2xl hover:border-indigo-500 hover:bg-indigo-50 transition-all">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden mb-2">
+                           <img src="https://vms.edu.in/wp-content/uploads/2023/10/gpay.png" alt="GPay" className="w-full h-full object-cover" />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-600">GPay</span>
+                      </button>
+                      <button onClick={handleUpiDeepLink} className="flex flex-col items-center p-3 border border-slate-200 rounded-2xl hover:border-indigo-500 hover:bg-indigo-50 transition-all">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden mb-2 p-1 bg-white">
+                           <img src="https://logowik.com/content/uploads/images/phonepe-icon8269.jpg" alt="PhonePe" className="w-full h-full object-contain" />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-600">PhonePe</span>
+                      </button>
+                      <button onClick={handleUpiDeepLink} className="flex flex-col items-center p-3 border border-slate-200 rounded-2xl hover:border-indigo-500 hover:bg-indigo-50 transition-all">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden mb-2 p-1 bg-white">
+                           <img src="https://static.vecteezy.com/system/resources/previews/013/441/317/original/paytm-logo-icon-editorial-free-vector.jpg" alt="Paytm" className="w-full h-full object-contain" />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-600">Paytm</span>
                       </button>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="py-12 text-center space-y-6">
-                  <div className="relative inline-block">
-                    <div className="w-20 h-20 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <i className="fa-solid fa-magnifying-glass-dollar text-indigo-600 text-2xl"></i>
-                    </div>
+
+                  <div className="relative py-4">
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
+                    <div className="relative flex justify-center"><span className="bg-white px-4 text-xs font-bold text-slate-300">OR</span></div>
                   </div>
-                  <div className="space-y-2">
-                    <h4 className="text-xl font-black text-slate-900">Verifying Payment</h4>
-                    <p className="text-sm text-slate-500 px-8">Matching Transaction ID <strong>{transactionId}</strong> with bank records...</p>
+
+                  <button 
+                    onClick={() => setPaymentStep('qr')}
+                    className="w-full py-4 rounded-2xl border-2 border-slate-900 text-slate-900 font-bold hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center space-x-2"
+                  >
+                    <i className="fa-solid fa-qrcode"></i>
+                    <span>Show QR Code</span>
+                  </button>
+                </div>
+              )}
+
+              {paymentStep === 'qr' && (
+                <div className="space-y-8 animate-fade-in">
+                  <div className="text-center">
+                    <div className="bg-slate-50 p-6 rounded-3xl inline-block mb-4 shadow-inner border border-slate-100">
+                      <img src={qrCodeUrl} alt="Scan to Pay" className="w-56 h-56 mx-auto mix-blend-multiply" />
+                    </div>
+                    <p className="text-slate-500 text-xs font-medium">Scan this QR with any UPI app to pay</p>
+                    <div className="mt-4 text-xl font-black text-slate-900">₹{note.price.toFixed(2)}</div>
+                  </div>
+                  
+                  <div className="space-y-4 pt-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">UTR / Transaction ID (Mandatory)</label>
+                      <input 
+                        type="text"
+                        placeholder="Enter 12-digit UTR number"
+                        className="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono shadow-sm"
+                        value={transactionId}
+                        onChange={(e) => setTransactionId(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                       <button onClick={() => setPaymentStep('method')} className="flex-1 bg-slate-100 text-slate-600 py-4 rounded-2xl font-bold hover:bg-slate-200 transition-all">Back</button>
+                       <button onClick={confirmPayment} className="flex-[2] bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">Verify Payment</button>
+                    </div>
                   </div>
                 </div>
               )}
+
+              {paymentStep === 'verifying' && (
+                <div className="py-20 text-center space-y-6 animate-fade-in">
+                  <div className="relative flex justify-center">
+                    <div className="w-24 h-24 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                       <i className="fa-solid fa-shield-check text-indigo-600 text-3xl animate-pulse"></i>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-black text-slate-900">Checking Transaction</h4>
+                    <p className="text-slate-500 text-sm mt-2">Connecting to banking server...</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-slate-50 px-8 py-4 flex items-center justify-center space-x-4 border-t border-slate-100">
+               <i className="fa-solid fa-lock text-slate-400 text-[10px]"></i>
+               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Secure Bank-to-Bank Transfer</span>
             </div>
           </div>
         </div>
@@ -188,230 +220,108 @@ const NoteDetails: React.FC<NoteDetailsProps> = ({ notes, user, onPurchase, onDe
       <nav className="mb-6 flex items-center space-x-2 text-sm text-slate-500">
         <Link to="/" className="hover:text-indigo-600 transition-colors">Marketplace</Link>
         <i className="fa-solid fa-chevron-right text-[10px]"></i>
-        <span className="text-slate-900 font-medium truncate max-w-[200px] sm:max-w-md">{note.title}</span>
+        <span className="text-slate-900 font-medium truncate max-w-[200px]">{note.title}</span>
       </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm overflow-hidden relative">
             <div className="flex flex-wrap items-center gap-2 mb-4">
                <span className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">{note.category}</span>
-               {note.tags.map(tag => (
-                 <span key={tag} className="text-slate-500 bg-slate-100 px-3 py-1 rounded-full text-xs">#{tag}</span>
-               ))}
                <div className="flex items-center ml-auto bg-amber-50 px-3 py-1 rounded-full">
                   <i className="fa-solid fa-star text-amber-500 text-[10px] mr-1.5"></i>
                   <span className="text-amber-700 text-xs font-black">{note.rating}</span>
-                  <span className="text-amber-400 text-[10px] ml-1 font-bold">({note.ratingCount})</span>
                </div>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 mb-4 leading-tight">{note.title}</h1>
+            <h1 className="text-3xl font-black text-slate-900 mb-4 leading-tight">{note.title}</h1>
             
             <div className="prose prose-slate max-w-none">
-              <h3 className="text-xl font-bold mb-4">About this Note</h3>
-              <p className="text-slate-600 mb-8">{note.description}</p>
-              
               <div ref={contentRef} className="relative rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden scroll-mt-24">
                 <div className="p-6 border-b border-slate-100 bg-white flex items-center justify-between">
-                   <h3 className="text-xl font-bold flex items-center">
-                      <i className="fa-solid fa-file-shield text-indigo-500 mr-2"></i>
-                      {note.pdfUrl ? 'Secure PDF Reader' : 'Note Content'}
-                   </h3>
-                   {canAccess && note.pdfUrl && (
-                     <span className="bg-emerald-50 text-emerald-600 text-[10px] font-black px-2 py-1 rounded uppercase">Read Only Mode</span>
-                   )}
+                   <h3 className="text-xl font-bold">Document View</h3>
                 </div>
                 
                 {canAccess ? (
-                  <div className="relative group">
+                  <div className="bg-white p-6 min-h-[400px]">
                     {note.pdfUrl ? (
-                      <div className="relative w-full h-[600px] bg-slate-800" onContextMenu={(e) => e.preventDefault()}>
-                        <iframe 
-                          src={`${note.pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`} 
-                          className="w-full h-full border-none pointer-events-auto"
-                          title="Secure PDF Viewer"
-                        />
-                        <div className="absolute inset-0 pointer-events-none select-none z-10 flex items-center justify-center">
-                           <div className="text-white/5 text-6xl font-black -rotate-45 select-none pointer-events-none">NOTENEXUS SECURE VIEW</div>
-                        </div>
-                      </div>
+                      <iframe src={`${note.pdfUrl}#toolbar=0`} className="w-full h-[600px] border-none" title="PDF Reader" />
                     ) : (
-                      <div className="text-slate-700 leading-relaxed whitespace-pre-wrap font-mono text-sm bg-white p-6 min-h-[300px]">
-                        {note.content}
-                      </div>
+                      <div className="text-slate-700 leading-relaxed font-mono text-sm whitespace-pre-wrap">{note.content}</div>
                     )}
                   </div>
                 ) : (
-                  <div className="relative p-12 bg-white">
-                    <div className="blur-md select-none opacity-20 leading-relaxed space-y-4">
-                       <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit...</p>
+                  <div className="relative p-12 bg-white text-center flex flex-col items-center">
+                    <div className="bg-indigo-600 text-white w-20 h-20 rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-indigo-200 rotate-3">
+                      <i className="fa-solid fa-lock text-3xl"></i>
                     </div>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-white/40 backdrop-blur-sm">
-                      <div className="bg-indigo-600 text-white w-16 h-16 rounded-full flex items-center justify-center mb-4 shadow-xl">
-                        <i className="fa-solid fa-lock text-2xl"></i>
-                      </div>
-                      <h4 className="text-xl font-bold text-slate-900 mb-2">Note is Locked</h4>
-                      <p className="text-slate-600 mb-6 max-w-xs">Purchase this note to access the full {note.pdfUrl ? 'PDF document' : 'content'} within the app.</p>
-                      <button 
-                        onClick={initiatePurchase}
-                        className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg"
-                      >
-                        Unlock for ₹{note.price.toFixed(2)}
-                      </button>
-                    </div>
+                    <h4 className="text-2xl font-black text-slate-900 mb-2">Knowledge Locked</h4>
+                    <p className="text-slate-600 mb-8 max-w-xs leading-relaxed">Join the high-achieving students who already purchased this study material.</p>
+                    <button onClick={initiatePurchase} className="bg-indigo-600 text-white px-10 py-4 rounded-2xl font-black hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center space-x-3">
+                       <i className="fa-solid fa-bolt"></i>
+                       <span>Unlock Instant Access</span>
+                    </button>
                   </div>
                 )}
               </div>
             </div>
           </div>
-
+          
           {canAccess && (
-            <div className="space-y-8">
-              {/* Interactive Rating Section */}
-              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm text-center">
-                 <h3 className="text-xl font-black text-slate-900 mb-2">Rate your experience</h3>
-                 <p className="text-slate-500 text-sm mb-6">How helpful was this study material for you?</p>
-                 
-                 {!hasRated ? (
-                    <div className="flex items-center justify-center space-x-3 mb-2">
-                       {[1, 2, 3, 4, 5].map((star) => (
-                         <button
-                           key={star}
-                           onMouseEnter={() => setHoverRating(star)}
-                           onMouseLeave={() => setHoverRating(0)}
-                           onClick={() => handleRating(star)}
-                           className="transition-all transform hover:scale-125 focus:outline-none"
-                         >
-                           <i className={`fa-solid fa-star text-3xl ${
-                             (hoverRating || userRating) >= star ? 'text-amber-400' : 'text-slate-200'
-                           }`}></i>
-                         </button>
-                       ))}
-                    </div>
-                 ) : (
-                   <div className="animate-fade-in flex flex-col items-center">
-                     <div className="bg-emerald-100 text-emerald-600 w-12 h-12 rounded-full flex items-center justify-center mb-3">
-                        <i className="fa-solid fa-check text-xl"></i>
-                     </div>
-                     <p className="text-emerald-700 font-bold">Thanks for your feedback!</p>
-                     <div className="flex space-x-1 mt-2">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <i key={s} className={`fa-solid fa-star text-xs ${userRating >= s ? 'text-amber-400' : 'text-slate-200'}`}></i>
-                        ))}
-                     </div>
-                   </div>
-                 )}
-              </div>
-
-              <div className="bg-gradient-to-br from-indigo-50 to-white rounded-3xl p-8 border border-indigo-100 shadow-sm relative overflow-hidden">
-                 <div className={`flex items-center justify-between transition-opacity duration-300 ${loadingAI ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
-                  <div>
-                     <h3 className="text-2xl font-black text-slate-900 flex items-center">
-                      <i className="fa-solid fa-wand-magic-sparkles text-indigo-500 mr-3"></i>
-                      AI Note Assistant
-                    </h3>
-                    <p className="text-slate-600">Get summaries and study questions from the content.</p>
-                  </div>
-                  {!aiSummary && !loadingAI && (
-                     <button onClick={handleAskAI} className="bg-white border-2 border-indigo-600 text-indigo-600 px-6 py-2 rounded-xl font-bold hover:bg-indigo-600 hover:text-white transition-all group">
-                       <i className="fa-solid fa-sparkles mr-2"></i> Deep Analysis
-                     </button>
-                  )}
+            <div className="bg-gradient-to-br from-indigo-50 to-white rounded-3xl p-8 border border-indigo-100 relative overflow-hidden">
+               <div className={`flex items-center justify-between transition-opacity duration-300 ${loadingAI ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900 flex items-center">
+                    <i className="fa-solid fa-wand-magic-sparkles text-indigo-500 mr-3"></i>AI Study Buddy
+                  </h3>
+                  <p className="text-slate-600">Let Gemini generate summaries and key questions.</p>
                 </div>
-
-                {loadingAI && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm animate-fade-in z-20">
-                    <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-                    <h4 className="text-lg font-black text-indigo-900 animate-pulse">Gemini is processing...</h4>
-                  </div>
-                )}
-
-                {aiSummary && (
-                  <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
-                    <div className="bg-white p-6 rounded-2xl border border-indigo-50">
-                      <h4 className="text-lg font-bold text-indigo-900 mb-4 flex items-center">
-                         <i className="fa-solid fa-align-left mr-2"></i> Smart Summary
-                      </h4>
-                      <div className="text-slate-700 text-sm leading-relaxed prose prose-sm max-w-none">{aiSummary}</div>
-                    </div>
-                    <div className="bg-white p-6 rounded-2xl border border-indigo-50">
-                      <h4 className="text-lg font-bold text-indigo-900 mb-4 flex items-center">
-                         <i className="fa-solid fa-clipboard-question mr-2"></i> Study Questions
-                      </h4>
-                      <ul className="space-y-4">
-                        {studyQuestions.map((q, idx) => (
-                          <li key={idx} className="bg-slate-50 p-3 rounded-lg border-l-4 border-indigo-400 text-sm text-slate-700 italic">"{q}"</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
+                {!aiSummary && <button onClick={handleAskAI} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">Deep Analyze</button>}
               </div>
+              {loadingAI && <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 backdrop-blur-sm z-20"><div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div></div>}
+              {aiSummary && <div className="mt-8 bg-white p-8 rounded-3xl border border-indigo-50 animate-fade-in shadow-sm"><div className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">{aiSummary}</div></div>}
             </div>
           )}
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-lg sticky top-24">
-            {canAccess ? (
+          <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-xl sticky top-24">
+            {!canAccess ? (
               <div className="mb-6">
-                <span className="text-emerald-600 text-xs uppercase font-bold tracking-widest bg-emerald-50 px-3 py-1 rounded-full">Access Granted</span>
-                <div className="text-2xl font-black text-slate-900 mt-3">Ready to Study</div>
-              </div>
-            ) : (
-              <div className="mb-6">
-                <span className="text-slate-500 text-sm uppercase font-bold tracking-widest">Pricing</span>
-                <div className="text-4xl font-black text-slate-900">₹{note.price.toFixed(2)}</div>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              {canAccess ? (
-                <button onClick={scrollToContent} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold hover:bg-slate-800 transition-all flex items-center justify-center space-x-2">
-                  <i className="fa-solid fa-eye"></i>
-                  <span>{note.pdfUrl ? 'Open PDF Reader' : 'View Content'}</span>
-                </button>
-              ) : (
-                <button onClick={initiatePurchase} className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center space-x-2">
-                  <i className="fa-solid fa-cart-shopping"></i>
+                <span className="text-slate-500 text-[10px] uppercase font-black tracking-widest ml-1">Investment</span>
+                <div className="text-5xl font-black text-slate-900 mt-2">₹{note.price.toFixed(2)}</div>
+                <button onClick={initiatePurchase} className="w-full mt-8 bg-indigo-600 text-white py-5 rounded-2xl font-black hover:bg-indigo-700 transition-all flex items-center justify-center space-x-3 shadow-2xl shadow-indigo-100 active:scale-95">
+                  <i className="fa-solid fa-cart-plus"></i>
                   <span>Buy Access Now</span>
                 </button>
-              )}
-            </div>
-
-            <hr className="my-6 border-slate-100" />
-            
+                <p className="text-center text-[10px] text-slate-400 mt-4 uppercase font-bold tracking-tighter flex items-center justify-center">
+                  <i className="fa-solid fa-shield-halved mr-2 text-emerald-500"></i> Secure UPI Verification
+                </p>
+              </div>
+            ) : (
+              <div className="mb-6 text-center">
+                <div className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-2xl font-black text-xs uppercase inline-block mb-4 tracking-widest">
+                  Purchased Library Item
+                </div>
+                <div className="text-2xl font-black text-slate-900">Access Granted</div>
+              </div>
+            )}
+            <hr className="my-6 border-slate-50" />
             <div className="space-y-4">
-              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Features</h4>
-              <ul className="space-y-3">
-                <li className="flex items-start text-sm text-slate-600">
-                  <i className="fa-solid fa-circle-check text-emerald-500 mt-1 mr-3"></i>
-                  <span>Secure in-app viewing</span>
-                </li>
-                <li className="flex items-start text-sm text-slate-600">
-                  <i className="fa-solid fa-circle-check text-emerald-500 mt-1 mr-3"></i>
-                  <span>AI Study Assistance</span>
-                </li>
-                <li className="flex items-start text-sm text-slate-600">
-                  <i className="fa-solid fa-circle-check text-emerald-500 mt-1 mr-3"></i>
-                  <span>Verified by Community</span>
-                </li>
-              </ul>
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Material Author</h4>
+              <div className="flex items-center space-x-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div className="w-12 h-12 rounded-xl bg-slate-200 overflow-hidden shadow-sm">
+                  <img src={`https://ui-avatars.com/api/?name=${note.author}&background=random`} alt="" className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <span className="text-sm font-black text-slate-900 block">{note.author}</span>
+                  <span className="text-[10px] text-indigo-500 font-bold uppercase tracking-wider">Top Contributor</span>
+                </div>
+              </div>
             </div>
           </div>
-
-          {isAdmin && (
-            <div className="bg-slate-900 text-white rounded-3xl p-8 relative overflow-hidden">
-              <h4 className="text-xl font-bold mb-4 relative z-10">Admin Access</h4>
-              <div className="space-y-3 relative z-10">
-                <button onClick={handleDelete} className="w-full bg-red-500/10 border border-red-500/20 text-red-500 py-3 rounded-xl font-bold hover:bg-red-500 hover:text-white transition-all flex items-center justify-center space-x-2">
-                  <i className="fa-solid fa-trash-can text-sm"></i>
-                  <span>Delete Publication</span>
-                </button>
-              </div>
-              <i className="fa-solid fa-shield-halved absolute -bottom-4 -right-4 text-white/5 text-8xl -rotate-12"></i>
-            </div>
-          )}
+          
+          {/* Sidebar Ads */}
+          {adsEnabled && <AdPlacement type="sidebar" onImpression={onAdImpression} />}
         </div>
       </div>
     </div>

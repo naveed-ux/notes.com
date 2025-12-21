@@ -96,12 +96,14 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         if (isSupabaseConfigured) {
           let adminUser = await fetchProfileByEmail(normalizedEmail);
           if (!adminUser) {
+            // Fix: Added missing adRevenue property
             adminUser = {
               id: 'admin-001',
               name: 'Noveed Mir',
               email: ADMIN_EMAIL,
               role: 'admin',
               balance: 0,
+              adRevenue: 0,
               purchasedNotes: [],
               uploadedNotes: [],
               password: ADMIN_PASS
@@ -111,12 +113,14 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           onLogin(adminUser);
         } else {
           // Local Admin
+          // Fix: Added missing adRevenue property
           onLogin({
             id: 'admin-local',
             name: 'Noveed Mir (Local)',
             email: ADMIN_EMAIL,
             role: 'admin',
             balance: 0,
+            adRevenue: 0,
             purchasedNotes: [],
             uploadedNotes: [],
             password: ADMIN_PASS
@@ -140,12 +144,14 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         }
       } else {
         // Simple local mock login for dev without Supabase
+        // Fix: Added missing adRevenue property
         onLogin({
           id: `u-${Math.random().toString(36).substr(2, 5)}`,
           name: email.split('@')[0],
           email: email,
           role: 'user',
           balance: 0.00,
+          adRevenue: 0,
           purchasedNotes: [],
           uploadedNotes: [],
           password: password
@@ -171,12 +177,14 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
     if (enteredOtp === generatedOtp) {
       const role: UserRole = email.toLowerCase() === ADMIN_EMAIL.toLowerCase() ? 'admin' : 'user';
+      // Fix: Added missing adRevenue property
       const newUser: User = {
         id: `u-${Math.random().toString(36).substr(2, 5)}`,
         name: name,
         email: email,
         role: role,
         balance: 0.00,
+        adRevenue: 0,
         purchasedNotes: [],
         uploadedNotes: [],
         password: password
