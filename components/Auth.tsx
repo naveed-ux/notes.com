@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { sendOtpEmail } from '../services/emailService';
+import { fetchProfileByEmail, createProfile, isSupabaseConfigured } from '../services/supabaseService';
 
 interface AuthProps {
   onLogin: (user: User) => void;
@@ -47,6 +48,16 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setLoading(true);
     setError('');
     
+    // Cloud check
+    if (isSupabaseConfigured && !isLogin) {
+      const existing = await fetchProfileByEmail(targetEmail);
+      if (existing) {
+        setError('An account with this email already exists. Please Sign In.');
+        setLoading(false);
+        return;
+      }
+    }
+
     // Generate a random 6-digit OTP
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(code);
@@ -78,41 +89,67 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
     if (isLogin) {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
       const normalizedEmail = email.trim().toLowerCase();
       
-      if (normalizedEmail === ADMIN_EMAIL.toLowerCase()) {
-        if (password === ADMIN_PASS) {
+      // Admin bypass
+      if (normalizedEmail === ADMIN_EMAIL.toLowerCase() && password === ADMIN_PASS) {
+        if (isSupabaseConfigured) {
+          let adminUser = await fetchProfileByEmail(normalizedEmail);
+          if (!adminUser) {
+            adminUser = {
+              id: 'admin-001',
+              name: 'Noveed Mir',
+              email: ADMIN_EMAIL,
+              role: 'admin',
+              balance: 0,
+              purchasedNotes: [],
+              uploadedNotes: [],
+              password: ADMIN_PASS
+            };
+            await createProfile(adminUser);
+          }
+          onLogin(adminUser);
+        } else {
+          // Local Admin
           onLogin({
-            id: 'admin-001',
-            name: 'Noveed Mir',
+            id: 'admin-local',
+            name: 'Noveed Mir (Local)',
             email: ADMIN_EMAIL,
             role: 'admin',
-            balance: 450.75,
+            balance: 0,
             purchasedNotes: [],
-            uploadedNotes: ['1', '2', '4']
+            uploadedNotes: [],
+            password: ADMIN_PASS
           });
-          return;
-        } else {
-          setError('Invalid credentials.');
-          setLoading(false);
-          return;
         }
+        return;
       }
 
-      const savedUsers = JSON.parse(localStorage.getItem('nn_users') || '[]');
-      const existingUser = savedUsers.find((u: any) => u.email.toLowerCase() === normalizedEmail);
-
-      if (existingUser) {
-        if (existingUser.password === password) {
-          onLogin(existingUser);
+      if (isSupabaseConfigured) {
+        const existingUser = await fetchProfileByEmail(normalizedEmail);
+        if (existingUser) {
+          if (existingUser.password === password) {
+            onLogin(existingUser);
+          } else {
+            setError('Incorrect password.');
+            setLoading(false);
+          }
         } else {
-          setError('Incorrect password.');
+          setError('No cloud account found. Please register.');
           setLoading(false);
         }
       } else {
-        setError('No account found. Please register.');
-        setLoading(false);
+        // Simple local mock login for dev without Supabase
+        onLogin({
+          id: `u-${Math.random().toString(36).substr(2, 5)}`,
+          name: email.split('@')[0],
+          email: email,
+          role: 'user',
+          balance: 0.00,
+          purchasedNotes: [],
+          uploadedNotes: [],
+          password: password
+        });
       }
     } else {
       if (!name.trim()) {
@@ -131,7 +168,6 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     }
 
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
 
     if (enteredOtp === generatedOtp) {
       const role: UserRole = email.toLowerCase() === ADMIN_EMAIL.toLowerCase() ? 'admin' : 'user';
@@ -146,12 +182,17 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         password: password
       };
 
-      const savedUsers = JSON.parse(localStorage.getItem('nn_users') || '[]');
-      savedUsers.push(newUser);
-      localStorage.setItem('nn_users', JSON.stringify(savedUsers));
-      onLogin(newUser);
+      try {
+        if (isSupabaseConfigured) {
+          await createProfile(newUser);
+        }
+        onLogin(newUser);
+      } catch (err) {
+        setError('Failed to create cloud profile.');
+        setLoading(false);
+      }
     } else {
-      setError('Invalid code. Please check your Gmail inbox and try again.');
+      setError('Invalid code. Please check your Gmail inbox.');
       setLoading(false);
     }
   };
@@ -173,6 +214,11 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
          </div>
          <h1 className="text-3xl font-black text-slate-900 tracking-tight text-center">NoteNexus</h1>
          <p className="text-slate-500 font-medium text-sm">Official Academic Marketplace</p>
+         {!isSupabaseConfigured && (
+            <span className="mt-2 inline-block bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded">
+              Local Preview Mode
+            </span>
+         )}
       </div>
 
       <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 animate-slide-up relative z-10">
@@ -233,17 +279,11 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 <button onClick={handleVerifyOtp} disabled={loading} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl">Confirm & Verify</button>
                 <button onClick={() => setStep('form')} className="block w-full text-slate-400 text-[10px] font-black uppercase tracking-widest mt-4">Edit email address</button>
               </div>
-              
-              {timer > 0 ? (
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Resend available in {timer}s</p>
-              ) : (
-                <button onClick={handleSendOtp} className="text-indigo-600 text-xs font-bold hover:underline">Resend Code</button>
-              )}
             </div>
           )}
         </div>
       </div>
-      <p className="mt-8 text-slate-400 text-xs font-medium">Secure Identity Manager &copy; {new Date().getFullYear()}</p>
+      <p className="mt-8 text-slate-400 text-xs font-medium">Cloud Identity Sync &copy; {new Date().getFullYear()}</p>
     </div>
   );
 };
